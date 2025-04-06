@@ -6,11 +6,8 @@ from datetime import datetime, timedelta
 import dash
 from dash import dcc, html, Input, Output, State
 import dash_bootstrap_components as dbc
-import requests
-import io
 import time
 import random
-from urllib.error import HTTPError
 import numpy as np
 
 # Initialize the Dash app
@@ -18,15 +15,11 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
 server = app.server
 
 # Load LLM release dates
-try:
-    llm_releases = pd.read_csv('data/model_release_dates.csv')
-    # Convert date strings to datetime objects
-    llm_releases['Release Date'] = pd.to_datetime(llm_releases['Release Date'])
-except Exception as e:
-    print(f"Error loading LLM release dates: {e}")
-    llm_releases = pd.DataFrame(columns=['Model Name', 'Company', 'Release Date', 'Parameter Size', 'Open Source', 'Notes'])
+llm_releases = pd.read_csv('data/model_release_dates.csv')
+# Convert date strings to datetime objects
+llm_releases['Release Date'] = pd.to_datetime(llm_releases['Release Date'])
 
-# List of tech companies to track
+# List of tickers to track
 COMPANIES = {
     'NVDA': 'NVIDIA',
     'AMD': 'AMD',
@@ -45,8 +38,8 @@ default_start_date = default_end_date - timedelta(days=365)
 app.layout = dbc.Container([
     dbc.Row([
         dbc.Col([
-            html.H1("LLM Releases and Tech Stock Performance", className="text-center my-4"),
-            html.P("Visualize the correlation between LLM model releases and stock price movements", 
+            html.H1("Market Trends vs LLM Releases", className="text-center my-4"),
+            html.P("A Quick look at LLM Releases vs Major Ticker Performance", 
                    className="text-center mb-4"),
         ], width=12)
     ]),
@@ -139,7 +132,7 @@ def generate_demo_data(ticker, start_date, end_date):
     return df
 
 # Modify the get_stock_data function to use demo data as a last resort
-def get_stock_data(ticker, start_date, end_date, max_retries=3, use_demo_fallback=True):
+def get_stock_data(ticker, start_date, end_date, max_retries=3, use_demo_fallback=False):
     """
     Get stock data with retry logic and better error handling
     """
@@ -251,10 +244,10 @@ def update_chart(n_clicks, selected_companies, start_date, end_date, chart_type)
             fig.add_trace(
                 go.Candlestick(
                     x=stock_data.index,
-                    open=stock_data['Open'],
-                    high=stock_data['High'],
-                    low=stock_data['Low'],
-                    close=stock_data['Close'],
+                    open=stock_data['Open'].values.flatten(),
+                    high=stock_data['High'].values.flatten(),
+                    low=stock_data['Low'].values.flatten(), 
+                    close=stock_data['Close'].values.flatten(),
                     name=ticker,
                     increasing=dict(line=dict(color='#26a69a')),
                     decreasing=dict(line=dict(color='#ef5350'))
@@ -325,7 +318,7 @@ def update_chart(n_clicks, selected_companies, start_date, end_date, chart_type)
     fig.update_layout(
         height=300 * len(selected_companies),
         showlegend=False,
-        title_text="Stock Performance and LLM Releases",
+        title_text="Market Trends vs LLM Releases",
         xaxis_rangeslider_visible=False,
         hovermode="closest",
         plot_bgcolor='rgba(240, 240, 240, 0.8)',  # Light gray background
